@@ -1,4 +1,4 @@
-const { Client, ActivityType } = require('discord.js');
+const { Client, ActivityType, SlashCommandBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
 const { embedCommandNotFound, embedFirstTimeJoin } = require('./embeds');
 const fs = require('fs');
@@ -12,11 +12,14 @@ const client = new Client({ intents: 3276799 });
 const commands = [helpCommand];
 
 const rest = new REST({ version: '9' }).setToken(process.env.TOKEN);
+//Agregar el comando random
+const allowedCommands = fs.readdirSync(path.join(__dirname, 'audio')).map(file => file.split('.')[0]);
 
+const pingCommand = new SlashCommandBuilder().setName('ping').setDescription('Check if this interaction is responsive');
 
 client.once('ready', () => {
   console.log(`Conectado como ${client.user.tag} a las ${new Date()}`);
-
+  helpCommand.slashRegister();
   client.user.setActivity({
     name: "Dragonbolseta",
     type: ActivityType.Streaming,
@@ -38,56 +41,76 @@ client.on('guildCreate', guild => {
   }
 });
 
-client.on('interactionCreate', interaction => {
+client.on('interactionCreate', async (interaction) => {
   if (!interaction.isCommand()) return;
-  console.log(interaction);
 
-  if (interaction.commandName === 'help') {
-    helpCommand.reply('papu', interaction);
+  const { commandName } = interaction;
+
+  if (interaction.isCommand()){
+    if (commandName === 'ping') {
+      await interaction.reply('Pong!');
+    } else if (commandName === 'help') {
+      await interaction.reply('Pongss!');
+    }
   }
 });
 
 client.on('messageCreate', async message => {
   if (message.author.bot || !message.content.startsWith(process.env.PREFIX)) return;
 
-  const command = message.content.slice(process.env.PREFIX.length).trim().toLowerCase(); // Extrae el comando de los mensajes
-  const audioFilePath = `${__dirname}/audio/${command}.mp3`;
-  const allowedCommands = fs.readdirSync(path.join(__dirname, 'audio')).map(file => file.split('.')[0]);
-  console.log(allowedCommands);
-  console.log(audioFilePath);
-  if (message.content === `${process.env.PREFIX} ${command}` && allowedCommands.includes(command)) {
+  let command = message.content.slice(process.env.PREFIX.length).trim().toLowerCase(); // Extrae el comando de los mensajes
+
+  if (message.content === `${process.env.PREFIX} ${command}` && allowedCommands.includes(command) || command === 'random' || command === 'leave') {
+    if (command === 'leave') {
+      if (message.member.voice.channel) {
+        const channel = message.member.voice.channel;
+        const connection = joinVoiceChannel({
+          channelId: channel.id,
+          guildId: channel.guild.id,
+          adapterCreator: channel.guild.voiceAdapterCreator,
+        });
+        connection.destroy();
+      } else {
+        message.reply('Tipazo/a no puedo salir de un canal de voz si no estoy en uno');
+      }
+      return;
+    }
     if (message.member.voice.channel) {
+      if (command === 'random') {
+        const randomIndex = Math.floor(Math.random() * allowedCommands.length);
+        command = allowedCommands[randomIndex];
+      }
+      const audioFilePath = `${__dirname}/audio/${command}.mp3`;
       const channel = message.member.voice.channel;
+      const player = createAudioPlayer();
       const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: channel.guild.id,
         adapterCreator: channel.guild.voiceAdapterCreator,
       });
-
-      const player = createAudioPlayer();
-      const resource = createAudioResource('./audio/hola.mp3');
-      player.play(resource);
-
       connection.subscribe(player);
+      const playAudio = (resourcePath) => {
+        const resource = createAudioResource(resourcePath);
+        player.play(resource);
+      };
 
-      let hasPlayed = false; // Variable para rastrear si ya se ha reproducido el audio
+      playAudio('./audio/hola.mp3');
 
-      player.on(AudioPlayerStatus.Idle, () => {
+      let hasPlayed = false;
+
+      player.on(AudioPlayerStatus.Playing, () => {
         if (!hasPlayed) {
-          // Solo reproduce el audio si no se ha reproducido antes
-          const preDisconnectResource = createAudioResource(audioFilePath);
-          player.play(preDisconnectResource);
-          hasPlayed = true; // Marca el audio como reproducido
+          playAudio(audioFilePath);
+          hasPlayed = true;
         }
       });
 
       setTimeout(() => {
-        const preDisconnectResource = createAudioResource(`${__dirname}/audio/hasta la proxima.mp3`);
-        player.play(preDisconnectResource);
+        playAudio(`${__dirname}/assets/hasta la proxima leave.mp3`);
         player.on(AudioPlayerStatus.Idle, () => {
-          connection.destroy(); // Desconecta después de reproducir el último audio
+          connection.destroy();
         });
-      }, 60000); // 60 seconds in milliseconds
+      }, 60000);
     } else {
       //Un mensaje que responda, tipazo "nombre"
       message.reply(`${message.author.globalName} sos un tipazo/tipaza, pero tenes que estar en un canal de voz para que pueda entrar.`); // Responde si el usuario no está en un canal de voz

@@ -2,7 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const audioDir = path.join(__dirname, 'audio');
-const allowedCommands = fs.readdirSync(audioDir).map((file) => file.split('.')[0]);
+const allowedCommands = fs.readdirSync(audioDir).map((file) => file.split('.')[0]).sort();
 
 console.log(allowedCommands);
 
@@ -26,9 +26,10 @@ const exampleEmbed = new EmbedBuilder()
 
 const embedCommandNotFound = new EmbedBuilder()
   .setColor(0x0099ff)
-  .setTitle('Comando no encontrado')
-  .setDescription('El comando que ingresaste no es válido. Por favor, intenta con uno de los siguientes comandos:')
+  .setTitle('No se decir esa palabra tipas tipos')
+  .setDescription('te dejo una lista de los comandos que puedo hacer porque sos un tipazo/tipaza')
   .addFields({ name: 'Comandos disponibles', value: allowedCommands.join('\n ') })
+  .setFooter({ text: 'Si no sabes cual usar, proba con !3p random', iconURL: 'https://imgs.search.brave.com/mtRbpgHTh7zRDUkGJI9asntVICXkfgTNzUlftQ2ivo4/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/YmVjYXN0aW5nLmNv/bS5hci9hc3NldHMv/Y2FjaGUvYm9va19w/aWN0dXJlX2xpc3Rf/dGFibGV0L3BpY3R1/cmUvNS9lLzgveGYw/NmI1MWFkMTY4YWYw/ZjhkOTA1NDU3MDky/NjNkZDJmNzc4NzQz/NTMuanBnLHF0bXM9/MTYyNzI3ODE1My5w/YWdlc3BlZWQuaWMu/VGNITGNacG5MTy5q/cGc' });
 
 const embedNotInVoiceChannel = new EmbedBuilder()
   .setColor(0x0099ff)
@@ -40,6 +41,6 @@ const embedFirstTimeJoin = new EmbedBuilder()
   .setTitle('¡Hola amigos de youtube como andan, soy yo July3p!')
   .setDescription('Gracias tipazo/tipaza por invitarme a tu servidor. Para ver los comandos disponibles usa `/help` en el chat. Te mando un abrazo rompehuesos y galaxia de goku.')
   .setImage('https://media1.tenor.com/m/dXI7vq868AQAAAAd/july3p-la-voy-poner-en-la-vida.gif')
-  .setFooter({ text: 'hasta la proximaaaaa! bay', iconURL: 'https://yt3.googleusercontent.com/ytc/AIdro_lx9GfKl1WnbnqgCq5Zw9S6AIXRHLZAsL4rPjMoR8Z-Ng=s900-c-k-c0x00ffffff-no-rj' });
+  .setFooter({ text: 'hasta la proximaaaaa', iconURL: 'https://yt3.googleusercontent.com/ytc/AIdro_lx9GfKl1WnbnqgCq5Zw9S6AIXRHLZAsL4rPjMoR8Z-Ng=s900-c-k-c0x00ffffff-no-rj' });
 
 module.exports = { exampleEmbed, embedCommandNotFound, embedNotInVoiceChannel, embedFirstTimeJoin };
