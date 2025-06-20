@@ -1,33 +1,31 @@
-const { Client, ActivityType, SlashCommandBuilder } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
+const { Client, ActivityType } = require('discord.js');
 const { embedCommandNotFound, embedFirstTimeJoin } = require('./embeds');
-const fs = require('fs');
-const path = require('path');
-const { REST } = require('@discordjs/rest');
 const helpCommand = require('./help');
-require('dotenv').config();
+const AudioHandler = require('./audioHandler');
+const config = require('./config');
 
+// Inicializar el cliente de Discord
 const client = new Client({ intents: 3276799 });
 
-const commands = [helpCommand];
+// Inicializar el manejador de audio
+const audioHandler = new AudioHandler();
 
-const rest = new REST({ version: '9' }).setToken(process.env.TOKEN);
-//Agregar el comando random
-const allowedCommands = fs.readdirSync(path.join(__dirname, 'audio')).map(file => file.split('.')[0]);
-
-const pingCommand = new SlashCommandBuilder().setName('ping').setDescription('Check if this interaction is responsive');
-
+// Evento cuando el bot está listo
 client.once('ready', () => {
-  console.log(`Conectado como ${client.user.tag} a las ${new Date()}`);
-  helpCommand.slashRegister();
+  console.log(`✅ Conectado como ${client.user.tag} a las ${new Date()}`);
+  
+  // Registrar comandos slash
+  helpCommand.registerSlashCommands();
+  
+  // Configurar actividad del bot
   client.user.setActivity({
-    name: "Dragonbolseta",
-    type: ActivityType.Streaming,
-    url: "https://www.youtube.com/watch?v=koMU9-aDsSs"
+    name: config.activity.name,
+    type: ActivityType[config.activity.type],
+    url: config.activity.url
   });
 });
 
-
+// Evento cuando el bot se une a un servidor
 client.on('guildCreate', guild => {
   let channel = guild.systemChannel;
   if (!channel) {
@@ -41,84 +39,83 @@ client.on('guildCreate', guild => {
   }
 });
 
+// Manejar comandos slash
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isCommand()) return;
 
   const { commandName } = interaction;
 
-  if (interaction.isCommand()){
-    if (commandName === 'ping') {
-      await interaction.reply('Pong!');
-    } else if (commandName === 'help') {
-      await interaction.reply('Pongss!');
+  try {
+    switch (commandName) {
+      case 'ping':
+        await interaction.reply('🏓 Pong!');
+        break;
+        
+      case 'help':
+        await helpCommand.execute(interaction);
+        break;
+        
+      default:
+        await interaction.reply({
+          content: '❌ Comando no reconocido',
+          ephemeral: true
+        });
     }
+  } catch (error) {
+    console.error('Error al ejecutar comando slash:', error);
+    await interaction.reply({
+      content: '❌ Hubo un error al ejecutar el comando',
+      ephemeral: true
+    });
   }
 });
 
+// Manejar comandos de texto
 client.on('messageCreate', async message => {
-  if (message.author.bot || !message.content.startsWith(process.env.PREFIX)) return;
+  // Ignorar mensajes de bots y mensajes que no empiecen con el prefijo
+  if (message.author.bot || !message.content.startsWith(config.prefix)) return;
 
-  let command = message.content.slice(process.env.PREFIX.length).trim().toLowerCase(); // Extrae el comando de los mensajes
+  // Extraer el comando del mensaje
+  const command = message.content.slice(config.prefix.length).trim().toLowerCase();
 
-  if (message.content === `${process.env.PREFIX} ${command}` && allowedCommands.includes(command) || command === 'random' || command === 'leave') {
-    if (command === 'leave') {
-      if (message.member.voice.channel) {
-        const channel = message.member.voice.channel;
-        const connection = joinVoiceChannel({
-          channelId: channel.id,
-          guildId: channel.guild.id,
-          adapterCreator: channel.guild.voiceAdapterCreator,
-        });
-        connection.destroy();
-      } else {
-        message.reply('Tipazo/a no puedo salir de un canal de voz si no estoy en uno');
-      }
-      return;
-    }
-    if (message.member.voice.channel) {
-      if (command === 'random') {
-        const randomIndex = Math.floor(Math.random() * allowedCommands.length);
-        command = allowedCommands[randomIndex];
-      }
-      const audioFilePath = `${__dirname}/audio/${command}.mp3`;
-      const channel = message.member.voice.channel;
-      const player = createAudioPlayer();
-      const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: channel.guild.id,
-        adapterCreator: channel.guild.voiceAdapterCreator,
-      });
-      connection.subscribe(player);
-      const playAudio = (resourcePath) => {
-        const resource = createAudioResource(resourcePath);
-        player.play(resource);
-      };
-
-      playAudio('./audio/hola.mp3');
-
-      let hasPlayed = false;
-
-      player.on(AudioPlayerStatus.Playing, () => {
-        if (!hasPlayed) {
-          playAudio(audioFilePath);
-          hasPlayed = true;
-        }
-      });
-
-      setTimeout(() => {
-        playAudio(`${__dirname}/assets/hasta la proxima leave.mp3`);
-        player.on(AudioPlayerStatus.Idle, () => {
-          connection.destroy();
-        });
-      }, 60000);
-    } else {
-      //Un mensaje que responda, tipazo "nombre"
-      message.reply(`${message.author.globalName} sos un tipazo/tipaza, pero tenes que estar en un canal de voz para que pueda entrar.`); // Responde si el usuario no está en un canal de voz
-    }
-  } else {
+  // Verificar si el comando es válido
+  if (!audioHandler.isValidCommand(command)) {
     message.channel.send({ embeds: [embedCommandNotFound] });
+    return;
+  }
+
+  try {
+    let result;
+
+    // Manejar comando leave
+    if (command === 'leave') {
+      result = await audioHandler.leaveVoiceChannel(message);
+    } else {
+      // Manejar comandos de audio
+      result = await audioHandler.playAudio(message, command);
+    }
+
+    // Responder al usuario solo si hay error
+    if (!result.success) {
+      message.reply(`❌ ${result.message}`);
+    }
+    // Si es exitoso (audio o leave), no enviar mensaje
+
+  } catch (error) {
+    console.error('Error al procesar comando:', error);
+    message.reply('❌ Hubo un error al procesar el comando. Inténtalo de nuevo.');
   }
 });
 
+// Manejar errores no capturados
+process.on('unhandledRejection', error => {
+  console.error('Error no manejado:', error);
+});
 
-client.login(process.env.TOKEN);
+process.on('uncaughtException', error => {
+  console.error('Excepción no capturada:', error);
+  process.exit(1);
+});
+
+// Iniciar sesión del bot
+client.login(config.token);

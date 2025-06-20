@@ -1,46 +1,101 @@
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const config = require('./config');
+
 const audioDir = path.join(__dirname, 'audio');
 const allowedCommands = fs.readdirSync(audioDir).map((file) => file.split('.')[0]).sort();
 
-console.log(allowedCommands);
+console.log('🎵 Comandos de audio disponibles:', allowedCommands);
 
-const exampleEmbed = new EmbedBuilder()
-  .setColor(0x0099ff)
-  .setTitle('Some title')
-  .setURL('https://discord.js.org/')
-  .setAuthor({ name: 'Some name', iconURL: 'https://i.imgur.com/AfFp7pu.png', url: 'https://discord.js.org' })
-  .setDescription('Some description here')
-  .setThumbnail('https://i.imgur.com/AfFp7pu.png')
-  .addFields(
-    { name: 'Regular field title', value: 'Some value here' },
-    { name: '\u200B', value: '\u200B' },
-    { name: 'Inline field title', value: 'Some value here', inline: true },
-    { name: 'Inline field title', value: 'Some value here', inline: true }
-  )
-  .addFields({ name: 'Inline field title', value: 'Some value here', inline: true })
-  .setImage('https://i.imgur.com/AfFp7pu.png')
-  .setTimestamp()
-  .setFooter({ text: 'Some footer text here', iconURL: 'https://i.imgur.com/AfFp7pu.png' });
-
+// Embed para comando no encontrado
 const embedCommandNotFound = new EmbedBuilder()
-  .setColor(0x0099ff)
-  .setTitle('No se decir esa palabra tipas tipos')
-  .setDescription('te dejo una lista de los comandos que puedo hacer porque sos un tipazo/tipaza')
-  .addFields({ name: 'Comandos disponibles', value: allowedCommands.join('\n ') })
-  .setFooter({ text: 'Si no sabes cual usar, proba con !3p random', iconURL: 'https://imgs.search.brave.com/mtRbpgHTh7zRDUkGJI9asntVICXkfgTNzUlftQ2ivo4/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/YmVjYXN0aW5nLmNv/bS5hci9hc3NldHMv/Y2FjaGUvYm9va19w/aWN0dXJlX2xpc3Rf/dGFibGV0L3BpY3R1/cmUvNS9lLzgveGYw/NmI1MWFkMTY4YWYw/ZjhkOTA1NDU3MDky/NjNkZDJmNzc4NzQz/NTMuanBnLHF0bXM9/MTYyNzI3ODE1My5w/YWdlc3BlZWQuaWMu/VGNITGNacG5MTy5q/cGc' });
+  .setColor(config.embedColors.primary)
+  .setTitle('❌ No se decir esa palabra tipas tipos')
+  .setDescription('Te dejo una lista de los comandos que puedo hacer porque sos un tipazo/tipaza')
+  .addFields({ 
+    name: '🎵 Comandos disponibles', 
+    value: allowedCommands.map(cmd => `\`${cmd}\``).join(', ') || 'No hay comandos disponibles'
+  })
+  .addFields(
+    { 
+      name: '🎲 Comando aleatorio', 
+      value: '`!3p random` - Reproduce un sonido aleatorio',
+      inline: true 
+    },
+    { 
+      name: '🚪 Salir del canal', 
+      value: '`!3p leave` - Sale del canal de voz',
+      inline: true 
+    }
+  )
+  .setFooter({ 
+    text: 'Si no sabes cual usar, proba con !3p random', 
+    iconURL: config.images.avatar 
+  });
 
+// Embed para usuario no en canal de voz
 const embedNotInVoiceChannel = new EmbedBuilder()
-  .setColor(0x0099ff)
-  .setTitle('No estás en un canal de voz')
-  .setDescription('Por favor, únete a un canal de voz e intenta de nuevo.');
+  .setColor(config.embedColors.warning)
+  .setTitle('🎤 No estás en un canal de voz')
+  .setDescription('Por favor, únete a un canal de voz e intenta de nuevo.')
+  .setFooter({ 
+    text: 'July3p Bot', 
+    iconURL: config.images.avatar 
+  });
 
+// Embed de bienvenida al servidor
 const embedFirstTimeJoin = new EmbedBuilder()
-  .setColor(0x0099ff)
-  .setTitle('¡Hola amigos de youtube como andan, soy yo July3p!')
+  .setColor(config.embedColors.primary)
+  .setTitle('🎉 ¡Hola amigos de youtube como andan, soy yo July3p!')
   .setDescription('Gracias tipazo/tipaza por invitarme a tu servidor. Para ver los comandos disponibles usa `/help` en el chat. Te mando un abrazo rompehuesos y galaxia de goku.')
-  .setImage('https://media1.tenor.com/m/dXI7vq868AQAAAAd/july3p-la-voy-poner-en-la-vida.gif')
-  .setFooter({ text: 'hasta la proximaaaaa', iconURL: 'https://yt3.googleusercontent.com/ytc/AIdro_lx9GfKl1WnbnqgCq5Zw9S6AIXRHLZAsL4rPjMoR8Z-Ng=s900-c-k-c0x00ffffff-no-rj' });
+  .setImage(config.images.welcomeGif)
+  .addFields({
+    name: '🎵 ¿Cómo usar el bot?',
+    value: 'Escribe `!3p` seguido del nombre del comando para reproducir audio en tu canal de voz.',
+    inline: false
+  })
+  .setFooter({ 
+    text: 'hasta la proximaaaaa', 
+    iconURL: config.images.avatar 
+  });
 
-module.exports = { exampleEmbed, embedCommandNotFound, embedNotInVoiceChannel, embedFirstTimeJoin };
+// Embed de ayuda mejorado
+const embedHelp = new EmbedBuilder()
+  .setColor(config.embedColors.primary)
+  .setTitle('🎵 July3p Bot - Comandos Disponibles')
+  .setDescription('Aquí tienes todos los comandos que puedo hacer:')
+  .addFields(
+    {
+      name: '🎵 Comandos de Audio',
+      value: allowedCommands.map(cmd => `\`${cmd}\``).join(', ') || 'No hay comandos disponibles',
+      inline: false
+    },
+    {
+      name: '🎲 Comando Aleatorio',
+      value: '`!3p random` - Reproduce un sonido aleatorio',
+      inline: true
+    },
+    {
+      name: '🚪 Salir del Canal',
+      value: '`!3p leave` - Sale del canal de voz',
+      inline: true
+    },
+    {
+      name: '❓ Ayuda',
+      value: '`/help` - Muestra esta lista de comandos',
+      inline: true
+    }
+  )
+  .setFooter({ 
+    text: 'Usa !3p seguido del nombre del comando para reproducir audio', 
+    iconURL: config.images.avatar 
+  });
+
+module.exports = { 
+  embedCommandNotFound, 
+  embedNotInVoiceChannel, 
+  embedFirstTimeJoin,
+  embedHelp,
+  allowedCommands
+};
